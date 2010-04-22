@@ -137,14 +137,16 @@ static NSNumber * int64ForSysctlName(const char *name, NSError **error)
 
 - (NSString *) modelName
 {
-	NSString *model = [self model];
-	NSString *path = [[NSBundle bundleWithIdentifier:@"org.sbooth.CrashReporter"] pathForResource:@"Macintosh Models" ofType:@"plist"];
-	if(model && path) {
-		NSDictionary *models = [NSDictionary dictionaryWithContentsOfFile:path];
-		return [models objectForKey:model];
-	}
-	else
-		return nil;
+    NSString *modelName = nil;
+
+    NSString *model = [self model];
+    NSString *path = [[NSBundle bundleWithIdentifier:@"org.sbooth.CrashReporter"] pathForResource:@"Macintosh Models" ofType:@"plist"];
+    if(model && path) {
+        NSDictionary *models = [NSDictionary dictionaryWithContentsOfFile:path];
+        modelName = [models objectForKey:model];
+    }
+
+    return modelName ? modelName : model;
 }
 
 - (NSNumber *) numberOfCPUs
