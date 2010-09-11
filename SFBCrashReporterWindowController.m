@@ -10,7 +10,6 @@
 #import <AddressBook/AddressBook.h>
 
 @interface SFBCrashReporterWindowController (Callbacks)
-- (void) didPresentErrorWithRecovery:(BOOL)didRecover contextInfo:(void  *)contextInfo;
 - (void) showSubmissionSheetDidEnd:(NSWindow *)sheet returnCode:(int)returnCode contextInfo:(void *)contextInfo;
 @end
 
@@ -51,8 +50,7 @@
 	[[windowController window] center];
 	[windowController showWindow:self];
 
-	// The windowcontroller will be autoreleased when the windowWillClose notification is received
-	// This ensures it will be visibile for non-GC apps (if autoreleased here it is never shown)
+	[windowController release], windowController = nil;
 }
 
 // Should not be called directly by anyone except this class
@@ -74,6 +72,8 @@
 
 - (void) windowDidLoad
 {
+	[self retain];
+
 	// Set the window's title
 	NSString *applicationName = [[NSBundle mainBundle] objectForInfoDictionaryKey:@"CFBundleName"];
 	NSString *applicationShortVersion = [[NSBundle mainBundle] objectForInfoDictionaryKey:@"CFBundleShortVersionString"];
@@ -123,32 +123,30 @@
 	[[self window] orderOut:self];
 }
 
-// Delete the crash log since the user isn't interested in submitting it
+// Move the crash log to the trash since the user isn't interested in submitting it
 - (IBAction) discardReport:(id)sender
 {
 
 #pragma unused(sender)
 
-	NSError *error = nil;
-	if(![[NSFileManager defaultManager] removeItemAtPath:self.crashLogPath error:&error])
-		[self presentError:error modalForWindow:[self window] delegate:self didPresentSelector:@selector(didPresentErrorWithRecovery:contextInfo:) contextInfo:NULL];
+	// Note: it is odd to use UTF8String here instead of fileSystemRepresentation, but FSPathMakeRef is explicitly
+	// documented to take an UTF-8 C string
+	FSRef ref;
+	OSStatus err = FSPathMakeRef((const UInt8 *)[self.crashLogPath UTF8String], &ref, NULL);
+	if(noErr == err) {
+		err = FSMoveObjectToTrashSync(&ref, NULL, kFSFileOperationDefaultOptions);
+		if(noErr != err)
+			NSLog(@"SFBCrashReporter: Unable to move %@ to trash: %i", self.crashLogPath, err);
+	}
 	else
-		[[self window] orderOut:self];
+		NSLog(@"SFBCrashReporter: Unable to create FSRef for file %@", self.crashLogPath);
+
+	[[self window] orderOut:self];
 }
 
 @end
 
 @implementation SFBCrashReporterWindowController (Callbacks)
-
-- (void) didPresentErrorWithRecovery:(BOOL)didRecover contextInfo:(void  *)contextInfo
-{
-
-#pragma unused(didRecover)
-#pragma unused(contextInfo)
-
-	// Just dismiss our window
-	[[self window] orderOut:self];
-}
 
 - (void) showSubmissionSheetDidEnd:(NSWindow *)sheet returnCode:(int)returnCode contextInfo:(void *)contextInfo
 {
@@ -180,17 +178,30 @@
 	if([[NSUserDefaults standardUserDefaults] boolForKey:@"SFBCrashReporterIncludeAnonymousSystemInformation"]) {
 		SFBSystemInformation *systemInformation = [[SFBSystemInformation alloc] init];
 		
-		[formValues setObject:[systemInformation machine] forKey:@"machine"];
-		[formValues setObject:[systemInformation model] forKey:@"model"];
-		[formValues setObject:[systemInformation physicalMemory] forKey:@"physicalMemory"];
-		[formValues setObject:[systemInformation numberOfCPUs] forKey:@"numberOfCPUs"];
-		[formValues setObject:[systemInformation busFrequency] forKey:@"busFrequency"];
-		[formValues setObject:[systemInformation CPUFrequency] forKey:@"CPUFrequency"];
-		[formValues setObject:[systemInformation CPUFamily] forKey:@"CPUFamily"];
-		[formValues setObject:[systemInformation modelName] forKey:@"modelName"];
-		[formValues setObject:[systemInformation CPUFamilyName] forKey:@"CPUFamilyName"];
-		[formValues setObject:[systemInformation systemVersion] forKey:@"systemVersion"];
-		[formValues setObject:[systemInformation systemBuildVersion] forKey:@"systemBuildVersion"];
+		id value = nil;
+		
+		if((value = [systemInformation machine]))
+			[formValues setObject:value forKey:@"machine"];
+		if((value = [systemInformation model]))
+			[formValues setObject:value forKey:@"model"];
+		if((value = [systemInformation physicalMemory]))
+			[formValues setObject:value forKey:@"physicalMemory"];
+		if((value = [systemInformation numberOfCPUs]))
+			[formValues setObject:value forKey:@"numberOfCPUs"];
+		if((value = [systemInformation busFrequency]))
+			[formValues setObject:value forKey:@"busFrequency"];
+		if((value = [systemInformation CPUFrequency]))
+			[formValues setObject:value forKey:@"CPUFrequency"];
+		if((value = [systemInformation CPUFamily]))
+			[formValues setObject:value forKey:@"CPUFamily"];
+		if((value = [systemInformation modelName]))
+			[formValues setObject:value forKey:@"modelName"];
+		if((value = [systemInformation CPUFamilyName]))
+			[formValues setObject:value forKey:@"CPUFamilyName"];
+		if((value = [systemInformation systemVersion]))
+			[formValues setObject:value forKey:@"systemVersion"];
+		if((value = [systemInformation systemBuildVersion]))
+			[formValues setObject:value forKey:@"systemBuildVersion"];
 
 		[formValues setObject:[NSNumber numberWithBool:YES] forKey:@"systemInformationIncluded"];
 
@@ -200,7 +211,7 @@
 		[formValues setObject:[NSNumber numberWithBool:NO] forKey:@"systemInformationIncluded"];
 	
 	// Include email address, if permitted
-	if([[NSUserDefaults standardUserDefaults] boolForKey:@"SFBCrashReporterIncludeEmailAddress"])
+	if([[NSUserDefaults standardUserDefaults] boolForKey:@"SFBCrashReporterIncludeEmailAddress"] && self.emailAddress)
 		[formValues setObject:self.emailAddress forKey:@"emailAddress"];
 	
 	// Optional comments
