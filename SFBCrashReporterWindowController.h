@@ -18,27 +18,39 @@
 	
 @private
 	NSString *_emailAddress;
-	NSString *_crashLogPath;
-	NSURL *_submissionURL;
+	NSArray *crashReports;
 	
-	NSURLConnection *_urlConnection;
-	NSMutableData *_responseData;
+	NSString *message;
+	NSString *prompt;
+	NSString *title;
+	NSString *placeholder;
+	NSString *note;
 }
 
 // ========================================
 // Properties
-@property (copy) NSString * emailAddress;
-@property (copy) NSString * crashLogPath;
-@property (copy) NSURL * submissionURL;
+@property (copy) NSString *emailAddress;
+@property (copy) NSString *message;
+@property (copy) NSString *prompt;
+@property (copy) NSString *title;
+@property (copy) NSString *placeholder;
+@property (copy) NSString *note;
+@property (retain) NSArray *crashReports;
+
 
 // ========================================
 // Always use this to show the window- do not alloc/init directly
-+ (void) showWindowForCrashLogPath:(NSString *)path submissionURL:(NSURL *)submissionURL;
++ (void)showWindowForCrashReportURLs:(NSArray *)reports 
+							   title:(NSString *)title 
+							 message:(NSString *)message 
+							  prompt:(NSString *)prompt 
+						 placeholder:(NSString *)placeholder
+								note:(NSString *)note
+						emailAddress:(NSString *)emailAddress;
 
 // ========================================
 // Action methods
 - (IBAction) sendReport:(id)sender;
 - (IBAction) ignoreReport:(id)sender;
-- (IBAction) discardReport:(id)sender;
 
 @end
