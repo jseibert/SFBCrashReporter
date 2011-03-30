@@ -82,8 +82,28 @@
 - (IBAction) sendReport:(id)sender {
 	#pragma unused(sender)
 	
+	if (![self.emailAddress length]) {
+		[[NSAlert alertWithMessageText:@"Email address not valid." 
+						 defaultButton:nil 
+					   alternateButton:nil 
+						   otherButton:nil 
+			 informativeTextWithFormat:@"Please enter a valid email address so that we can respond to your feedback."] runModal];
+		
+		return;
+	}
+		
 	NSAttributedString *attributedComments = [_commentsTextView attributedSubstringFromRange:NSMakeRange(0, NSUIntegerMax)];
 	
+	if (![attributedComments length]) {
+		[[NSAlert alertWithMessageText:@"Comments missing." 
+						 defaultButton:nil 
+					   alternateButton:nil 
+						   otherButton:nil 
+			 informativeTextWithFormat:[NSString stringWithFormat:@"Please respond to \"%@\"", self.prompt]] runModal];
+		
+		return;
+	}
+		
 	[_progressIndicator startAnimation:self];
 	[_reportButton setEnabled:NO];
 	[_ignoreButton setEnabled:NO];
