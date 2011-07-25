@@ -114,6 +114,12 @@
 										 userEmailAddress:self.emailAddress];
 	
 	[[self window] orderOut:self];
+	
+	[[NSAlert alertWithMessageText:@"Thanks!" 
+					 defaultButton:nil 
+				   alternateButton:nil 
+					   otherButton:nil 
+		 informativeTextWithFormat:@"Your message has been sent."] runModal];
 }
 
 // Don't do anything except dismiss our window
